@@ -5896,17 +5896,17 @@ struct UnionFieldInlineStruct
     y::Union{Float64, Missing}
 end
 
-@test sizeof(Vector{UnionFieldInlineStruct}(undef, 2)) == 48
+@test sizeof(Vector{UnionFieldInlineStruct}(undef, 2)) == sizeof(UnionFieldInlineStruct) * 2
 
 let x = UnionFieldInlineStruct(1, 3.14)
     AInlineUnion = [x for i = 1:10]
-    @test sizeof(AInlineUnion) == 240
+    @test sizeof(AInlineUnion) == sizeof(UnionFieldInlineStruct) * 10
     BInlineUnion = Vector{UnionFieldInlineStruct}(undef, 10)
     copyto!(BInlineUnion, AInlineUnion)
     @test AInlineUnion == BInlineUnion
     @test BInlineUnion[end] == x
     CInlineUnion = vcat(AInlineUnion, BInlineUnion)
-    @test sizeof(CInlineUnion) == 480
+    @test sizeof(CInlineUnion) == sizeof(UnionFieldInlineStruct) * 20
     @test CInlineUnion[end] == x
 end
 
