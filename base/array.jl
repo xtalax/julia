@@ -212,7 +212,7 @@ function bitsunionsize(u::Union)
 end
 
 length(a::Array) = arraylen(a)
-elsize(::Type{<:Array{T}}) where {T} = allocatedinline(T) ? sizeof(T) : (isbitsunion(T) ? bitsunionsize(T) : sizeof(Ptr))
+elsize(::Type{<:Array{T}}) where {T} = isbitsunion(T) ? bitsunionsize(T) : (allocatedinline(T) ? sizeof(T) : sizeof(Ptr))
 sizeof(a::Array) = Core.sizeof(a)
 
 function isassigned(a::Array, i::Int...)
@@ -1547,11 +1547,11 @@ function vcat(arrays::Vector{T}...) where T
     end
     arr = Vector{T}(undef, n)
     ptr = pointer(arr)
-    if allocatedinline(T)
-        elsz = Core.sizeof(T)
-    elseif isbitsunion(T)
+    if isbitsunion(T)
         elsz = bitsunionsize(T)
         selptr = ccall(:jl_array_typetagdata, Ptr{UInt8}, (Any,), arr)
+    elseif allocatedinline(T)
+        elsz = Core.sizeof(T)
     else
         elsz = Core.sizeof(Ptr{Cvoid})
     end
@@ -1559,16 +1559,16 @@ function vcat(arrays::Vector{T}...) where T
     for a in arrays
         na = length(a)
         nba = na * elsz
-        if allocatedinline(T)
-            ccall(:memcpy, Ptr{Cvoid}, (Ptr{Cvoid}, Ptr{Cvoid}, UInt),
-                  ptr, a, nba)
-        elseif isbitsunion(T)
+        if isbitsunion(T)
             ccall(:memcpy, Ptr{Cvoid}, (Ptr{Cvoid}, Ptr{Cvoid}, UInt),
                   ptr, a, nba)
             # copy selector bytes
             ccall(:memcpy, Ptr{Cvoid}, (Ptr{Cvoid}, Ptr{Cvoid}, UInt),
                   selptr, ccall(:jl_array_typetagdata, Ptr{UInt8}, (Any,), a), na)
             selptr += na
+        elseif allocatedinline(T)
+            ccall(:memcpy, Ptr{Cvoid}, (Ptr{Cvoid}, Ptr{Cvoid}, UInt),
+                  ptr, a, nba)
         else
             ccall(:jl_array_ptr_copy, Cvoid, (Any, Ptr{Cvoid}, Any, Ptr{Cvoid}, Int),
                   arr, ptr, a, pointer(a), na)
