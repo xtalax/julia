@@ -1536,7 +1536,7 @@ extern "C"
 void clang_registerCheckers (CheckerRegistry &registry) {
     registry.addChecker<GCChecker>("julia.GCChecker",
                                    "Validates julia gc invariants"
-#if LLVM_VERSION_MAJOR > 8
+#if LLVM_VERSION_MAJOR >= 8
                                    ,"https://docs.julialang.org/en/v1/devdocs/gc-sa/"
 #endif
                                    );
