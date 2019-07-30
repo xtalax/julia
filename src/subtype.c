@@ -1456,6 +1456,22 @@ static int concrete_min(jl_value_t *t)
     return 2; // up to infinite
 }
 
+static int vararg_elt_bound(jl_value_t *v) JL_NOTSAFEPOINT
+{
+    assert(jl_is_vararg_type(v));
+    jl_tvar_t *v1=NULL, *v2=NULL;
+    if (jl_is_unionall(v)) {
+        v1 = ((jl_unionall_t*)v)->var;
+        v = ((jl_unionall_t*)v)->body;
+        if (jl_is_unionall(v)) {
+            v2 = ((jl_unionall_t*)v)->var;
+            v = ((jl_unionall_t*)v)->body;
+        }
+    }
+    jl_value_t *elt = jl_tparam0(v);
+    return jl_is_typevar(elt) && elt != (jl_value_t*)v1 && elt != (jl_value_t*)v2;
+}
+
 // quickly compute if x seems like a possible subtype of y
 // especially optimized for x isa concrete type
 // returns true if it could be easily determined, with the result in subtype
@@ -1663,6 +1679,8 @@ JL_DLLEXPORT int jl_obvious_subtype(jl_value_t *x, jl_value_t *y, int *subtype)
             if (i < nparams_expanded_x) {
                 // there are elements left in x (possibly just a Vararg), check them against the Vararg tail of y too
                 assert(vy != JL_VARARG_NONE && istuple && iscov);
+                if (vararg_elt_bound(jl_tparam(y, i)))
+                    return 0;
                 jl_value_t *a1 = (vx != JL_VARARG_NONE && i >= npx - 1) ? vxt : jl_tparam(x, i);
                 jl_value_t *b = jl_unwrap_vararg(jl_tparam(y, i));
                 if (nparams_expanded_x > npy && jl_is_typevar(b) && concrete_min(a1) > 1) {
